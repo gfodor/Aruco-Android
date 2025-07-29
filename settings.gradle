@@ -1,1 +1,1 @@
-include ':app', ':camera-calibration', ':opencv344-contrib'
+include ':app', ':opencv344-contrib'

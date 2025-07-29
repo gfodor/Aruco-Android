@@ -17,6 +17,7 @@ import java.util.List;
 
 import mg.rivolink.app.aruco.renderer.Renderer3D;
 import mg.rivolink.app.aruco.utils.CameraParameters;
+import mg.rivolink.app.aruco.view.PortraitCameraView;
 import mg.rivolink.app.aruco.view.PortraitCameraLayout;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -41,7 +42,7 @@ import org.opencv.imgproc.Imgproc;
 
 import org.rajawali3d.view.SurfaceView;
 
-public class MainActivity extends AppCompatActivity implements CvCameraViewListener2 {
+public class MainActivity extends AppCompatActivity implements CvCameraViewListener2, PortraitCameraView.CameraIntrinsicsListener {
 
 	public static final float SIZE = 0.04f;
 	
@@ -66,16 +67,11 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         @Override
         public void onManagerConnected(int status){
 			if(status == LoaderCallbackInterface.SUCCESS){
-				Activity activity = MainActivity.this;
-				
 				cameraMatrix = Mat.eye(3, 3, CvType.CV_64FC1);
 				distCoeffs = new MatOfDouble(Mat.zeros(5, 1, CvType.CV_64FC1));
 				
-				if(CameraParameters.fileExists(activity)){
-					CameraParameters.tryLoad(activity, cameraMatrix, distCoeffs);
-				}
-				else {
-					CameraParameters.selectFile(activity);
+				if (camera instanceof PortraitCameraView) {
+					((PortraitCameraView) camera).setCameraIntrinsicsListener(MainActivity.this);
 				}
 				
 				camera.enableView();
@@ -106,8 +102,9 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 	}
 
 	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data){
-		CameraParameters.onActivityResult(this, requestCode, resultCode, data, cameraMatrix, distCoeffs);
+	public void onCameraIntrinsicsAvailable(Mat cameraMatrix, MatOfDouble distCoeffs) {
+		this.cameraMatrix = cameraMatrix;
+		this.distCoeffs = distCoeffs;
 	}
 
 	@Override
@@ -146,7 +143,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
 	@Override
 	public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame){
-		if(!CameraParameters.isLoaded()){
+		if(cameraMatrix == null || distCoeffs == null){
 			return inputFrame.rgba();
 		}
 		

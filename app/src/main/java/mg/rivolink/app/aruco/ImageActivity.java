@@ -100,9 +100,12 @@ public class ImageActivity extends Activity {
 	}
 
 	private boolean loadCameraParams(){
-		cameraMatrix = Mat.eye(3, 3, CvType.CV_64FC1);
+		int width = originalBMP != null ? originalBMP.getWidth() : 640;
+		int height = originalBMP != null ? originalBMP.getHeight() : 480;
+		
+		cameraMatrix = CameraParameters.createDefaultCameraMatrix(width, height);
 		distCoeffs = Mat.zeros(5, 1, CvType.CV_64FC1);
-		return CameraParameters.tryLoad(this, cameraMatrix, distCoeffs);
+		return true;
 	}
 
 	private void detectMarkersAsync(){

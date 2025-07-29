@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion "30.0.3"
+    namespace 'mg.rivolink.app.aruco'
+    compileSdkVersion 33
 
     defaultConfig {
         applicationId "mg.rivolink.app.aruco"
-        minSdkVersion 15
-        targetSdkVersion 30
+        minSdkVersion 21
+        targetSdkVersion 33
         versionCode 1
         versionName "1.1"
     }

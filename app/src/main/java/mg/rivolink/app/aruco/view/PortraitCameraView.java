@@ -41,11 +41,11 @@ public class PortraitCameraView extends JavaCameraView {
 
     @Override
     protected boolean connectCamera(int width, int height) {
-        Log.i(TAG, "PortraitCameraView connectCamera - using Camera1 API for now");
+        Log.d("ArucoDebug", "PortraitCameraView connectCamera called - " + width + "x" + height);
         
         // Call parent connection first
         boolean result = super.connectCamera(width, height);
-        Log.i(TAG, "super.connectCamera() returned: " + result);
+        Log.d("ArucoDebug", "super.connectCamera() returned: " + result);
         
         if (result) {
             // For now, create default camera intrinsics
@@ -57,7 +57,7 @@ public class PortraitCameraView extends JavaCameraView {
     }
     
     private void createDefaultIntrinsics() {
-        Log.i(TAG, "Creating default camera intrinsics");
+        Log.d("ArucoDebug", "Creating default camera intrinsics");
         
         // Create a default camera matrix - we'll improve this later
         mCameraMatrix = Mat.eye(3, 3, CvType.CV_64FC1);
@@ -73,7 +73,7 @@ public class PortraitCameraView extends JavaCameraView {
         mCameraMatrix.put(0, 2, cx);
         mCameraMatrix.put(1, 2, cy);
         
-        Log.i(TAG, "Using default camera intrinsics: fx=" + fx + ", fy=" + fy + 
+        Log.d("ArucoDebug", "Using default camera intrinsics: fx=" + fx + ", fy=" + fy + 
                 ", cx=" + cx + ", cy=" + cy);
         
         // Set distortion coefficients to zero
@@ -90,5 +90,39 @@ public class PortraitCameraView extends JavaCameraView {
     
     public MatOfDouble getDistortionCoefficients() {
         return mDistCoeffs;
+    }
+    
+    @Override
+    public void enableView() {
+        Log.d("ArucoDebug", "PortraitCameraView enableView() called");
+        super.enableView();
+        Log.d("ArucoDebug", "PortraitCameraView enableView() completed");
+    }
+    
+    @Override
+    public void disableView() {
+        Log.d("ArucoDebug", "PortraitCameraView disableView() called");
+        super.disableView();
+    }
+    
+    @Override
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        super.onLayout(changed, l, t, r, b);
+        
+        // Force camera connection if layout is complete and camera isn't connected yet
+        if (changed && (r-l) > 0 && (b-t) > 0) {
+            post(new Runnable() {
+                @Override
+                public void run() {
+                    // Force a camera connection attempt
+                    connectCamera(getWidth(), getHeight());
+                }
+            });
+        }
+    }
+    
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 }

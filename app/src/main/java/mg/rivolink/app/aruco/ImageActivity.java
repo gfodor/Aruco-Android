@@ -21,9 +21,6 @@ import java.util.LinkedList;
 
 import org.opencv.android.Utils;
 import org.opencv.android.OpenCVLoader;
-import org.opencv.android.BaseLoaderCallback;
-import org.opencv.android.LoaderCallbackInterface;
-
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfDouble;
@@ -36,9 +33,11 @@ import org.opencv.core.Point3;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
-import org.opencv.aruco.Aruco;
-import org.opencv.aruco.Dictionary;
-import org.opencv.aruco.DetectorParameters;
+import org.opencv.objdetect.ArucoDetector;
+import org.opencv.objdetect.Dictionary;
+import org.opencv.objdetect.DetectorParameters;
+import org.opencv.objdetect.Objdetect;
+import android.util.Log;
 
 import mg.rivolink.app.aruco.utils.CameraParameters;
 
@@ -50,27 +49,19 @@ public class ImageActivity extends Activity {
 	private ImageView imageView;
 	private Bitmap originalBMP;
 
-	private final BaseLoaderCallback loaderCallback = new BaseLoaderCallback(this){
-		@Override
-		public void onManagerConnected(int status){
-			if(status == LoaderCallbackInterface.SUCCESS){
-				String message = "";
+	private void initializeOpenCV() {
+		String message = "";
 
-				if(loadCameraParams()){
-					message = getString(R.string.info_detecting_markers);
-					detectMarkersAsync();
-				}
-				else {
-					message = getString(R.string.error_camera_params);
-				}
-
-				Toast.makeText(ImageActivity.this,  message,  Toast.LENGTH_SHORT).show();
-			}
-			else {
-				super.onManagerConnected(status);
-			}
+		if(loadCameraParams()){
+			message = getString(R.string.info_detecting_markers);
+			detectMarkersAsync();
 		}
-	};
+		else {
+			message = getString(R.string.error_camera_params);
+		}
+
+		Toast.makeText(ImageActivity.this,  message,  Toast.LENGTH_SHORT).show();
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -93,10 +84,22 @@ public class ImageActivity extends Activity {
 	protected void onResume(){
 		super.onResume();
 
-		if(OpenCVLoader.initDebug())
-			loaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-		else
-			Toast.makeText(this, getString(R.string.error_native_lib), Toast.LENGTH_LONG).show();
+		Log.d("ArucoDebug", "ImageActivity: Attempting to initialize OpenCV...");
+		try {
+			boolean initResult = OpenCVLoader.initLocal();
+			Log.d("ArucoDebug", "ImageActivity: OpenCVLoader.initLocal() returned: " + initResult);
+			
+			if(initResult) {
+				Log.d("ArucoDebug", "ImageActivity: OpenCV initialization SUCCESS");
+				initializeOpenCV();
+			} else {
+				Log.e("ArucoDebug", "ImageActivity: OpenCV initialization FAILED");
+				Toast.makeText(this, getString(R.string.error_native_lib), Toast.LENGTH_LONG).show();
+			}
+		} catch (Exception e) {
+			Log.e("ArucoDebug", "ImageActivity: Exception during OpenCV initialization: " + e.getMessage(), e);
+			Toast.makeText(this, "OpenCV init exception: " + e.getMessage(), Toast.LENGTH_LONG).show();
+		}
 	}
 
 	private boolean loadCameraParams(){
@@ -144,51 +147,14 @@ public class ImageActivity extends Activity {
 
 		MatOfInt ids = new MatOfInt();
 		List<Mat> corners = new LinkedList<>();
-		Dictionary dictionary = Aruco.getPredefinedDictionary(Aruco.DICT_6X6_50);
-		DetectorParameters parameters = DetectorParameters.create();
+		Dictionary dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_6X6_50);
+		DetectorParameters parameters = new DetectorParameters();
+		ArucoDetector arucoDetector = new ArucoDetector(dictionary, parameters);
 
-		Aruco.detectMarkers(gray, dictionary, corners, ids, parameters);
+		arucoDetector.detectMarkers(gray, corners, ids);
 
 		if(corners.size() > 0){
-			Aruco.drawDetectedMarkers(rgb, corners, ids);
-
-			Mat rvecs = new Mat();
-			Mat tvecs = new Mat();
-
-			Aruco.estimatePoseSingleMarkers(corners, 0.04f, cameraMatrix, distCoeffs, rvecs, tvecs);
-
-			List<Point3> corners4 = new ArrayList<>(4);
-			corners4.add(new Point3(-0.02f,0.02f,0));		// Top-Left
-			corners4.add(new Point3(0.02f,0.02f,0));		// Top-Right
-			corners4.add(new Point3(-0.02f,-0.02f,0));		// Bottom-Left
-			corners4.add(new Point3(0.02f,-0.02f,0));		// Bottom-Right
-
-			MatOfPoint3f mcorners = new MatOfPoint3f();
-			mcorners.fromList(corners4);
-
-			distCoeffs = new MatOfDouble(distCoeffs);
-
-			for(int i = 0; i < ids.toArray().length; i++){
-				Aruco.drawAxis(rgb, cameraMatrix, distCoeffs, rvecs.row(i), tvecs.row(i), 0.02f);
-
-				MatOfPoint2f projected = new MatOfPoint2f();
-				Calib3d.projectPoints(mcorners, rvecs.row(i), tvecs.row(i), cameraMatrix, (MatOfDouble)distCoeffs, projected);
-
-				Point[] points = projected.toArray();
-				projected.release();
-
-				if(points != null){
-					for(Point point:points){
-						Imgproc.circle(rgb, point, 10, new Scalar(0, 255, 0, 150), 4);
-					}
-				}
-			}
-
-			mcorners.release();
-
-			rvecs.release();
-			tvecs.release();
-
+			Objdetect.drawDetectedMarkers(rgb, corners, ids);
 			bitmap=Bitmap.createBitmap(rgb.width(), rgb.height(), Bitmap.Config.RGB_565);
 			Utils.matToBitmap(rgb, bitmap);
 		}
